@@ -1,0 +1,253 @@
+@startuml
+skinparam classAttributeIconSize 0
+skinparam classFontSize 11
+skinparam classAttributeFontSize 8
+skinparam classMethodFontSize 8
+skinparam classBackgroundColor #F5F5FA
+skinparam classBorderColor #222244
+skinparam classArrowColor #444466
+skinparam classArrowThickness 1
+skinparam linetype ortho
+skinparam classSpacing 2
+skinparam dpi 100
+skinparam pageMargin 5
+
+together {
+  class user {
+    id: String
+    username: String
+    email: String
+    dni: String
+    firstName: String
+    lastName: String
+    password: String
+    phone: String
+    address: String
+    status: String
+    roleId: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+  class role {
+    id: String
+    name: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+}
+
+together {
+  class Grade {
+    id: String
+    name: String
+    level: String
+    section: String
+    status: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    mainTeacherId: String
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+  class Student {
+    id: String
+    firstName: String
+    lastName: String
+    middleName: String
+    identityCard: String
+    address: String
+    birthDate: DateTime
+    status: String
+    firstNameTutor: String
+    lastNameTutor: String
+    phoneTutor: String
+    gradeId: String
+    userId: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+}
+
+together {
+  class Teacher {
+    id: String
+    userId: String
+    specialty: String
+    status: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+  class Tutor {
+    id: String
+    userId: String
+    status: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+}
+
+together {
+  class Class {
+    id: String
+    gradeId: String
+    subjectId: String
+    teacherId: String
+    schedule: String
+    status: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+  class Subject {
+    id: String
+    name: String
+    description: String
+    status: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+}
+
+together {
+  class AcademicRecord {
+    id: String
+    studentId: String
+    gradeId: String
+    subjectId: String
+    semester: String
+    year: Int
+    grade1: Int
+    grade2: Int
+    grade3: Int
+    finalGrade: Int
+    comments: String
+    teacherId: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+  class Observation {
+    id: String
+    tutorId: String
+    attendanceId: String
+    behaviorId: String
+    comment: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+}
+
+together {
+  class Behavior {
+    id: String
+    studentId: String
+    date: DateTime
+    type: String
+    description: String
+    statusSee: String
+    teacherId: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+  class Attendance {
+    id: String
+    studentId: String
+    date: DateTime
+    status: String
+    notes: String
+    statusSee: String
+    createdAt: DateTime
+    updatedAt: DateTime
+    --
+    +crear()
+    +editar()
+    +eliminar()
+    +buscar()
+  }
+}
+
+' --- RELACIONES LIMPIAS ---
+user --> role
+user --> Teacher
+user --> Behavior
+user --> AcademicRecord
+user --> Student
+
+Grade --> Student
+Grade --> AcademicRecord
+
+Student --> Attendance
+Student --> Behavior
+Student --> AcademicRecord
+Student --> Grade
+
+Teacher --> Class
+
+Tutor --> Observation
+
+Class --> Subject
+Class --> Teacher
+
+Subject --> AcademicRecord
+
+AcademicRecord --> Student
+AcademicRecord --> Grade
+AcademicRecord --> Subject
+
+Observation --> Tutor
+Observation --> Behavior
+
+Behavior --> Observation
+
+@enduml

@@ -1,0 +1,280 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // o el motor de BD que uses
+  url      = env("DATABASE_URL")
+}
+
+model dms {
+  id            String       @id @default(uuid())
+  fileName      String       @map("file_name")
+  path          String      
+  mimeType      String       @map("mime_type")
+  type          String    
+  user          String?  
+  module        String?   
+  size          Int?
+  createdAt     DateTime     @default(now())
+  @@map("dms")
+}
+
+model user {
+  id          String    @id @default(uuid())
+  username    String    @unique
+  email       String    @unique
+  dni         String?   @unique
+  firstName   String?   @map("first_name")
+  lastName    String?   @map("last_name")
+  password    String
+  phone       String?
+  address     String?
+  status      String   @default("active")
+  roleId      String   @map("role_id")
+  role        role    @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+ 
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  // Relaciones
+  teacher     Teacher?
+   Grade        Grade[] 
+   behavior      Behavior[]
+   AcademicRecord AcademicRecord[]
+  student     Student[]
+}
+
+model role {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  users      user[]
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+}
+
+model product {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  price       Int       @default(0)
+  stock       Int       @default(0)
+  file        String?
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  categoryId  String    @map("category_id")
+  marcaId     String    @map("marca_id")
+  
+  // Relaciones
+  category    category? @relation(fields: [categoryId], references: [id])
+  marca       marca?    @relation(fields: [marcaId], references: [id])
+}
+
+model category {
+  id          String    @id @default(uuid())
+  name        String
+  status      String    @default("active")
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relación
+  products    product[]
+}
+
+model marca {
+  id          String    @id @default(uuid())
+  name        String
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relación
+  products    product[]
+}
+
+model Grade {
+  id          String    @id @default(uuid())
+  name        String
+  level       String
+  section     String
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  mainTeacherId String? @map("main_teacher_id") // Campo de relación añadido
+  
+  // Relaciones
+  students    Student[]
+  user         user?  @relation(fields: [mainTeacherId], references: [id]) // Relación corregida
+  academicRecord     AcademicRecord[]
+}
+
+model Student {
+  id             String    @id @default(uuid())
+  firstName      String   @map("first_name")
+  lastName       String   @map("last_name")
+  middleName     String   @map("middle_name")
+  identityCard   String  @map("identity card")
+  address        String
+  birthDate      DateTime  @map("birth_date")
+  status         String    @default("active")
+  firstNameTutor String    @map("first_name_tutor")
+  lastNameTutor  String    @map("last_name_tutor")
+  phoneTutor     String    @map("phone_tutor")
+  gradeId        String    @map("grade_id")
+  userId        String    @map("user_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  grade       Grade     @relation(fields: [gradeId], references: [id])
+  user        user     @relation(fields: [userId], references: [id])
+  attendances Attendance[]
+  behaviors   Behavior[]
+  record      AcademicRecord[]
+ 
+}
+
+model Teacher {
+  id          String    @id @default(uuid())
+  userId      String    @unique @map("user_id")
+  specialty   String?
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  user        user      @relation(fields: [userId], references: [id])
+   // Relación inversa
+  classes     Class[]
+
+}
+
+model Tutor {
+  id          String    @id @default(uuid())
+  userId      String    @unique @map("user_id")
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  observations Observation[]
+}
+
+
+model Class {
+  id          String    @id @default(uuid())
+  gradeId     String    @map("grade_id")
+  subjectId   String    @map("subject_id")
+  teacherId   String    @map("teacher_id")
+  schedule    String
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  
+  subject     Subject   @relation(fields: [subjectId], references: [id])
+  teacher     Teacher   @relation(fields: [teacherId], references: [id])
+}
+model Subject {
+  id          String    @id @default(uuid())
+  name        String
+  description String?
+  status      String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  classes     Class[]
+   academicRecords AcademicRecord[] 
+
+}
+
+model AcademicRecord {
+  id          String    @id @default(uuid())
+  studentId   String    @map("student_id")
+  gradeId     String    @map("grade_id")
+   subjectId   String    @map("subject_id") 
+  semester    String
+
+  year        Int
+  grade1      Int?    @map("grade_1")
+  grade2      Int?    @map("grade_2")
+  grade3      Int?    @map("grade_3")
+  finalGrade  Int?    @map("final_grade")
+  comments    String?
+  teacherId   String    @map("teacher_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  student     Student   @relation(fields: [studentId], references: [id])
+  grade       Grade   @relation(fields: [gradeId], references: [id])
+  subject     Subject   @relation(fields: [subjectId], references: [id]) 
+  user        user   @relation(fields: [teacherId], references: [id])
+}
+
+model Observation {
+  id             String     @id @default(uuid())
+  tutorId        String     @map("tutor_id")
+  attendanceId   String?    @map("attendance_id")
+  behaviorId     String?    @map("behavior_id")
+  comment        String
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @updatedAt @map("updated_at")
+
+  // Relaciones
+  tutor          Tutor       @relation(fields: [tutorId], references: [id])
+  attendance     Attendance? @relation("AttendanceObservations", fields: [attendanceId], references: [id])
+  behavior       Behavior?   @relation(fields: [behaviorId], references: [id])
+}
+
+model Behavior {
+  id          String    @id @default(uuid())
+  studentId   String    @map("student_id")
+  date        DateTime
+  type        String
+  description String?
+  statusSee      String @default("active")
+  teacherId   String    @map("teacher_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  student     Student     @relation(fields: [studentId], references: [id])
+  user        user     @relation(fields: [teacherId], references: [id])
+  observation Observation[]
+}
+
+model Attendance {
+  id          String    @id @default(uuid())
+  studentId   String    @map("student_id")
+  date        DateTime
+  status      String
+  notes       String?
+  statusSee   String    @default("active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  
+  // Relaciones
+  student     Student     @relation(fields: [studentId], references: [id])
+  observations  Observation[] @relation("AttendanceObservations")
+}
+
+model franz{
+   id          String    @id @default(uuid())
+  studentId   String    @map("student_id")
+  date        DateTime
+  status      String
+  notes       String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+}

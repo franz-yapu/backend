@@ -1,0 +1,407 @@
+// dashboard.service.ts
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class DashboardService {
+  constructor(private prisma: PrismaService) {}
+
+  async getDashboard() {
+    const [faltasPorCurso, faltasPorMes, notasPorCurso,comportamientoPorCurso] = await Promise.all([
+      this.getFaltasYAtrasosPorCurso(),
+      this.getFaltasYAtrasosPorMes(),
+      this.getPromedioNotasPorCurso(),
+      this.getComportamientoPorCurso()
+    ]);
+
+    return [faltasPorCurso, faltasPorMes, notasPorCurso,comportamientoPorCurso];
+  }
+
+  async getDashboardPorCurso(cursoId: string) {
+    const [faltasCurso, faltasMes, comportamientoCurso] = await Promise.all([
+      this.getFaltasYAtrasosPorCursoEspecifico(cursoId),
+      this.getFaltasYAtrasosPorMesEspecifico(cursoId),
+     /*  this.getPromedioNotasPorCursoEspecifico(cursoId), */
+      this.getComportamientoPorCursoEspecifico(cursoId)
+    ]);
+
+    return [faltasCurso, faltasMes, comportamientoCurso];
+  }
+
+  private async getFaltasYAtrasosPorCursoEspecifico(cursoId: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: cursoId },
+      include: {
+        students: {
+          include: {
+            attendances: true,
+          },
+        },
+      },
+    });
+
+    if (!grade) {
+      throw new Error('Curso no encontrado');
+    }
+
+    let faltas = 0;
+    let atrasos = 0;
+
+    grade.students.forEach((student) => {
+      student.attendances.forEach((att) => {
+        if (att.status === 'absent') faltas++;
+        if (att.status === 'late') atrasos++;
+      });
+    });
+
+    return {
+      id: 'faltas-curso-especifico',
+      title: `Faltas y Atrasos - ${grade.name}`,
+      options: {
+        tooltip: { trigger: 'item' },
+        legend: { data: ['Faltas', 'Atrasos'] },
+        series: [
+          {
+            name: 'Faltas y Atrasos',
+            type: 'pie',
+            radius: '50%',
+            data: [
+              { value: faltas, name: 'Faltas', itemStyle: { color: '#F44336' } },
+              { value: atrasos, name: 'Atrasos', itemStyle: { color: '#FF9800' } },
+            ],
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)',
+              },
+            },
+          },
+        ],
+      },
+    };
+  }
+
+  private async getFaltasYAtrasosPorMesEspecifico(cursoId: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: cursoId },
+      include: {
+        students: {
+          include: {
+            attendances: true,
+          },
+        },
+      },
+    });
+
+    if (!grade) {
+      throw new Error('Curso no encontrado');
+    }
+
+    const meses = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+    const faltasPorMes = new Array(12).fill(0);
+    const atrasosPorMes = new Array(12).fill(0);
+
+    grade.students.forEach((student) => {
+      student.attendances.forEach((att) => {
+        const mes = att.date.getMonth();
+        if (att.status === 'absent') faltasPorMes[mes]++;
+        if (att.status === 'late') atrasosPorMes[mes]++;
+      });
+    });
+
+    return {
+      id: 'faltas-mes-especifico',
+      title: `Faltas y Atrasos por Mes - ${grade.name}`,
+      options: {
+        tooltip: { trigger: 'axis' },
+        legend: { data: ['Faltas', 'Atrasos'] },
+        xAxis: { type: 'category', data: meses },
+        yAxis: { type: 'value' },
+        series: [
+          { name: 'Faltas', type: 'line', data: faltasPorMes, color: '#E91E63' },
+          { name: 'Atrasos', type: 'line', data: atrasosPorMes, color: '#9C27B0' },
+        ],
+      },
+    };
+  }
+
+  private async getPromedioNotasPorCursoEspecifico(cursoId: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: cursoId },
+      include: {
+        academicRecord: {
+          include: {
+            student: true,
+          },
+        },
+      },
+    });
+
+    if (!grade) {
+      throw new Error('Curso no encontrado');
+    }
+
+    const result = grade.academicRecord.map((record) => {
+      const notas = [record.grade1, record.grade2, record.grade3, record.finalGrade]
+        .filter((n) => n !== null && n !== undefined);
+
+      const promedio = notas.length > 0 
+        ? notas.reduce((a, b) => a + b, 0) / notas.length 
+        : 0;
+
+      return {
+        estudiante: `${record.student.firstName} ${record.student.lastName}`,
+        promedio: Number(promedio.toFixed(2)),
+      };
+    });
+
+    return {
+      id: 'notas-curso-especifico',
+      title: `Promedio de Notas por Estudiante - ${grade.name}`,
+      options: {
+        tooltip: { trigger: 'axis' },
+        xAxis: { type: 'value', min: 0, max: 100 },
+        yAxis: { type: 'category', data: result.map(r => r.estudiante) },
+        series: [
+          {
+            name: 'Promedio',
+            type: 'bar',
+            data: result.map(r => r.promedio),
+            itemStyle: { color: '#2196F3' },
+            label: {
+              show: true,
+              position: 'right',
+              formatter: '{c}',
+            },
+          },
+        ],
+      },
+    };
+  }
+
+  private async getComportamientoPorCursoEspecifico(cursoId: string) {
+    const grade = await this.prisma.grade.findUnique({
+      where: { id: cursoId },
+      include: {
+        students: {
+          include: {
+            behaviors: true,
+          },
+        },
+      },
+    });
+
+    if (!grade) {
+      throw new Error('Curso no encontrado');
+    }
+
+    const conteo = { '1': 0, '2': 0, '3': 0 };
+
+    grade.students.forEach((student) => {
+      student.behaviors.forEach((b) => {
+        if (conteo[b.type] !== undefined) conteo[b.type]++;
+      });
+    });
+
+    return {
+      id: 'comportamiento-curso-especifico',
+      title: `Comportamiento - ${grade.name}`,
+      options: {
+        tooltip: { trigger: 'item' },
+        series: [
+          {
+            name: 'Comportamiento',
+            type: 'pie',
+            radius: '50%',
+            data: [
+              { value: conteo['1'], name: 'Incidente Grave', itemStyle: { color: '#F44336' } },
+              { value: conteo['2'], name: 'Aviso', itemStyle: { color: '#FF9800' } },
+              { value: conteo['3'], name: 'Reconocimiento', itemStyle: { color: '#4CAF50' } },
+            ],
+            emphasis: {
+              itemStyle: {
+                shadowBlur: 10,
+                shadowOffsetX: 0,
+                shadowColor: 'rgba(0, 0, 0, 0.5)',
+              },
+            },
+          },
+        ],
+      },
+    };
+  }
+
+private async getFaltasYAtrasosPorCurso() {
+  const data = await this.prisma.grade.findMany({
+    include: {
+      students: {
+        include: {
+          attendances: true,
+        },
+      },
+    },
+  });
+
+  const result = data.map((grade) => {
+    let faltas = 0;
+    let atrasos = 0;
+
+    grade.students.forEach((student) => {
+      student.attendances.forEach((att) => {
+        if (att.status === 'absent') faltas++;
+        if (att.status === 'late') atrasos++;
+      });
+    });
+
+    return {
+      curso: `${grade.name}`,
+      faltas,
+      atrasos,
+    };
+  });
+
+  return {
+    id: 'faltas-curso',
+    title: 'Faltas y Atrasos por Curso',
+    options: {
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['Faltas', 'Atrasos'] },
+      xAxis: { type: 'category', data: result.map(r => r.curso) },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Faltas', type: 'bar', data: result.map(r => r.faltas), color: '#F44336' },
+        { name: 'Atrasos', type: 'bar', data: result.map(r => r.atrasos), color: '#FF9800' },
+      ],
+    },
+  };
+}
+
+  private async getFaltasYAtrasosPorMes() {
+  const data = await this.prisma.attendance.findMany({
+    select: { date: true, status: true },
+  });
+
+  const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+  const faltasPorMes = new Array(12).fill(0);
+  const atrasosPorMes = new Array(12).fill(0);
+
+  data.forEach((att) => {
+    const mes = att.date.getMonth(); // 0 = Ene
+    if (att.status === 'absent') faltasPorMes[mes]++;
+    if (att.status === 'late') atrasosPorMes[mes]++;
+  });
+
+  return {
+    id: 'faltas-mes',
+    title: 'Faltas y Atrasos por Mes',
+    options: {
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['Faltas', 'Atrasos'] },
+      xAxis: { type: 'category', data: meses },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Faltas', type: 'line', data: faltasPorMes, color: '#E91E63' },
+        { name: 'Atrasos', type: 'line', data: atrasosPorMes, color: '#9C27B0' },
+      ],
+    },
+  };
+}
+
+
+ private async getPromedioNotasPorCurso() {
+  const data = await this.prisma.grade.findMany({
+    include: {
+      academicRecord: true,
+    },
+  });
+
+  const result = data.map((grade) => {
+    let total = 0;
+    let count = 0;
+
+    grade.academicRecord.forEach((record) => {
+      const notas = [record.grade1, record.grade2, record.grade3, record.finalGrade]
+        .filter((n) => n !== null && n !== undefined);
+
+      if (notas.length > 0) {
+        total += notas.reduce((a, b) => a + b, 0) / notas.length;
+        count++;
+      }
+    });
+
+    const promedio = count > 0 ? total / count : 0;
+
+    return {
+      curso: `${grade.name} `,
+      promedio,
+    };
+  });
+
+  return {
+    id: 'notas-curso',
+    title: 'Promedio de Notas por Curso',
+    options: {
+      tooltip: { trigger: 'axis' },
+      xAxis: { type: 'value', min: 0, max: 100 },
+      yAxis: { type: 'category', data: result.map(r => r.curso) },
+      series: [
+        {
+          name: 'Promedio',
+          type: 'bar',
+          data: result.map(r => r.promedio.toFixed(2)),
+          itemStyle: { color: '#2196F3' },
+        },
+      ],
+    },
+  };
+}
+
+private async getComportamientoPorCurso() {
+  const data = await this.prisma.grade.findMany({
+    include: {
+      students: {
+        include: {
+          behaviors: true,
+        },
+      },
+    },
+  });
+
+  // Mapeamos por curso y tipo de comportamiento
+  const result = data.map((grade) => {
+    const conteo = { '1': 0, '2': 0, '3': 0 }; // 1=Incidente Grave, 2=Aviso, 3=Reconocimiento
+
+    grade.students.forEach((student) => {
+      student.behaviors.forEach((b) => {
+        if (conteo[b.type] !== undefined) conteo[b.type]++;
+      });
+    });
+
+    return {
+      curso: grade.name,
+      incidentes: conteo['1'],
+      avisos: conteo['2'],
+      reconocimientos: conteo['3'],
+    };
+  });
+
+  return {
+    id: 'comportamiento-curso',
+    title: 'Comportamiento por Curso',
+    options: {
+      tooltip: { trigger: 'axis' },
+      legend: { data: ['Incidente Grave', 'Aviso', 'Reconocimiento'] },
+      xAxis: { type: 'category', data: result.map(r => r.curso) },
+      yAxis: { type: 'value' },
+      series: [
+        { name: 'Incidente Grave', type: 'bar', stack: 'total', data: result.map(r => r.incidentes), color: '#F44336' },
+        { name: 'Aviso', type: 'bar', stack: 'total', data: result.map(r => r.avisos), color: '#FF9800' },
+        { name: 'Reconocimiento', type: 'bar', stack: 'total', data: result.map(r => r.reconocimientos), color: '#4CAF50' },
+      ],
+    },
+  };
+}
+
+
+}

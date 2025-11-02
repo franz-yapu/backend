@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: always
+    environment:
+      POSTGRES_USER: usuario
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: dbname
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+  backend:
+    build: /home/franz/backend-nestjs
+    container_name: nest-backend
+    restart: always
+    depends_on:
+      - postgres
+    environment:
+      DATABASE_URL: postgresql://usuario:password@postgres:5432/dbname
+      PORT: 3000
+    networks:
+      - app-network
+    ports:
+      - "3000:3000"  # opcional, solo si quieres exponer el backend
+
+  frontend:
+    build: /home/franz/frontend-angular
+    container_name: angular-frontend
+    restart: always
+    depends_on:
+      - backend
+    networks:
+      - app-network
+    ports:
+      - "80:80"
+
+volumes:
+  pgdata:
+
+networks:
+  app-network:
+    driver: bridge
