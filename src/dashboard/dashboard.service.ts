@@ -7,14 +7,15 @@ export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   async getDashboard() {
-    const [faltasPorCurso, faltasPorMes, notasPorCurso,comportamientoPorCurso] = await Promise.all([
+    const [faltasPorCurso, faltasPorMes, notasPorCurso,comportamientoPorCurso,notasFiltradas] = await Promise.all([
       this.getFaltasYAtrasosPorCurso(),
       this.getFaltasYAtrasosPorMes(),
       this.getPromedioNotasPorCurso(),
-      this.getComportamientoPorCurso()
+      this.getComportamientoPorCurso(),
+      this.getNotasFiltradas() // Nuevo chart
     ]);
 
-    return [faltasPorCurso, faltasPorMes, notasPorCurso,comportamientoPorCurso];
+    return [faltasPorCurso, faltasPorMes, notasPorCurso,comportamientoPorCurso,notasFiltradas];
   }
 
   async getDashboardPorCurso(cursoId: string) {
@@ -403,5 +404,135 @@ private async getComportamientoPorCurso() {
   };
 }
 
+
+  // Nuevo método para obtener notas filtradas (dashboard general)
+  private async getNotasFiltradas() {
+    const data = await this.prisma.academicRecord.findMany({
+      include: {
+        student: true,
+        grade: true,
+        subject: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true
+          }
+        }
+      }
+    });
+
+    // Agrupar por curso, materia y profesor
+    const agrupado = data.reduce((acc, record) => {
+      const key = `${record.gradeId}-${record.subjectId}-${record.teacherId}`;
+      
+      if (!acc[key]) {
+        acc[key] = {
+          curso: record.grade.name,
+          materia: record.subject.name,
+          profesor: `${record.user.firstName || ''} ${record.user.lastName || ''}`.trim(),
+          notas: [],
+          promediosEstudiantes: []
+        };
+      }
+
+      // Calcular promedio del estudiante
+      const notasEstudiante = [record.grade1, record.grade2, record.grade3, record.finalGrade]
+        .filter(n => n !== null && n !== undefined);
+      
+      const promedioEstudiante = notasEstudiante.length > 0 
+        ? notasEstudiante.reduce((a, b) => a + b, 0) / notasEstudiante.length 
+        : 0;
+
+      acc[key].notas.push(...notasEstudiante);
+      acc[key].promediosEstudiantes.push(promedioEstudiante);
+
+      return acc;
+    }, {});
+
+    const result = Object.values(agrupado).map((grupo: any) => {
+      const promedioGeneral = grupo.notas.length > 0 
+        ? grupo.notas.reduce((a, b) => a + b, 0) / grupo.notas.length 
+        : 0;
+
+      const promedioEstudiantes = grupo.promediosEstudiantes.length > 0
+        ? grupo.promediosEstudiantes.reduce((a, b) => a + b, 0) / grupo.promediosEstudiantes.length
+        : 0;
+
+      return {
+        curso: grupo.curso,
+        materia: grupo.materia,
+        profesor: grupo.profesor,
+        promedioGeneral: Number(promedioGeneral.toFixed(2)),
+       
+        cantidadNotas: grupo.notas.length,
+        cantidadEstudiantes: grupo.promediosEstudiantes.length
+      };
+    });
+
+    return {
+      id: 'notas-filtradas',
+      title: 'Promedios de Notas por Curso, Materia y Profesor',
+      type: 'filtrable',
+      filters: {
+        cursos: [...new Set(result.map(r => r.curso))],
+        materias: [...new Set(result.map(r => r.materia))],
+        profesores: [...new Set(result.map(r => r.profesor))]
+      },
+      data: result,
+      options: {
+        tooltip: {
+          trigger: 'axis',
+          axisPointer: { type: 'shadow' }
+        },
+        legend: { 
+          data: ['Promedio General', 'Promedio por Estudiante'] 
+        },
+        grid: {
+          left: '3%',
+          right: '4%',
+          bottom: '15%',
+          containLabel: true
+        },
+        xAxis: {
+          type: 'category',
+          data: result.map(r => `${r.curso}\n${r.materia}`),
+          axisLabel: {
+            interval: 0,
+            rotate: 45
+          }
+        },
+        yAxis: {
+          type: 'value',
+          min: 0,
+          max: 100,
+          name: 'Nota'
+        },
+        series: [
+          {
+            name: 'Promedio General',
+            type: 'bar',
+            data: result.map(r => r.promedioGeneral),
+            itemStyle: { color: '#2196F3' },
+            label: {
+              show: true,
+              position: 'top',
+              formatter: '{c}'
+            }
+          },
+         /*  {
+            name: 'Promedio por Estudiante',
+            type: 'bar',
+            data: result.map(r => r.promedioEstudiantes),
+            itemStyle: { color: '#4CAF50' },
+            label: {
+              show: true,
+              position: 'top',
+              formatter: '{c}'
+            }
+          } */
+        ]
+      }
+    };
+  }
 
 }

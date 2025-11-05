@@ -1,3 +1,2 @@
-2025/11/01-20:27:04.069 1f12 Reusing MANIFEST /home/franz/Documentos/project-unidad/backend/.wwebjs_auth/session-whatsapp-bot/Default/shared_proto_db/metadata/MANIFEST-000001
-2025/11/01-20:27:04.069 1f12 Recovering log #3
-2025/11/01-20:27:04.069 1f12 Reusing old log /home/franz/Documentos/project-unidad/backend/.wwebjs_auth/session-whatsapp-bot/Default/shared_proto_db/metadata/000003.log 
+2025/11/04-20:19:03.061 8f6d9 Creating DB /home/franz/Documentos/project-unidad/backend/.wwebjs_auth/session-whatsapp-bot/Default/shared_proto_db/metadata since it was missing.
+2025/11/04-20:19:03.068 8f6d9 Reusing MANIFEST /home/franz/Documentos/project-unidad/backend/.wwebjs_auth/session-whatsapp-bot/Default/shared_proto_db/metadata/MANIFEST-000001
