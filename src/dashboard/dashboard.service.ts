@@ -234,7 +234,6 @@ export class DashboardService {
   }
 
 private async getFaltasYAtrasosPorCurso() {
-  // Asegurarnos de obtener TODOS los cursos
   const data = await this.prisma.grade.findMany({
     include: {
       students: {
@@ -243,14 +242,12 @@ private async getFaltasYAtrasosPorCurso() {
         },
       },
     },
-    // Opcional: ordenar por nombre para consistencia
-    orderBy: {
-      name: 'asc'
-    }
+    // Ordenar por level y section
+    orderBy: [
+      { level: 'asc' },
+      { section: 'asc' }
+    ]
   });
-
-  // Debug: verificar cuántos cursos se obtuvieron
-  console.log(`Cursos encontrados: ${data.length}`);
 
   const result = data.map((grade) => {
     let faltas = 0;
@@ -263,42 +260,82 @@ private async getFaltasYAtrasosPorCurso() {
       });
     });
 
-    console.log(`Curso: ${grade.name}, Faltas: ${faltas}, Atrasos: ${atrasos}`);
-
     return {
-      curso: grade.name,
+      curso: `${grade.level}° ${grade.section}`, // Formato más corto
+      name: grade.name, // Nombre completo por si acaso
+      level: grade.level,
+      section: grade.section,
       faltas,
       atrasos,
     };
+  });
+
+  // Ordenar el resultado por level y section
+  result.sort((a, b) => {
+    const levelCompare = a.level.localeCompare(b.level);
+    if (levelCompare !== 0) return levelCompare;
+    return a.section.localeCompare(b.section);
   });
 
   return {
     id: 'faltas-curso',
     title: 'Faltas y Atrasos por Curso',
     options: {
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['Faltas', 'Atrasos'] },
+      tooltip: { 
+        trigger: 'axis',
+        formatter: function (params: any) {
+          const faltas = params.find(p => p.seriesName === 'Faltas');
+          const atrasos = params.find(p => p.seriesName === 'Atrasos');
+          return `
+            ${faltas.name}<br/>
+            Faltas: ${faltas.value}<br/>
+            Atrasos: ${atrasos.value}
+          `;
+        }
+      },
+      legend: { 
+        data: ['Faltas', 'Atrasos'],
+        top: '0%'
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '15%', // Más espacio para labels
+        top: '15%',
+        containLabel: true
+      },
       xAxis: { 
         type: 'category', 
         data: result.map(r => r.curso),
         axisLabel: {
           interval: 0,
-          rotate: result.length > 5 ? 45 : 0 // Rotar labels si hay muchos cursos
+          rotate: 45, // Rotar 45 grados
+          margin: 15,
+          fontSize: 10,
+          formatter: (value: string) => {
+            // Acortar labels si son muy largos
+            return value.length > 10 ? value.substring(0, 8) + '...' : value;
+          }
         }
       },
-      yAxis: { type: 'value' },
+      yAxis: { 
+        type: 'value',
+        name: 'Cantidad'
+      },
       series: [
         { 
           name: 'Faltas', 
           type: 'bar', 
           data: result.map(r => r.faltas), 
-          color: '#F44336' 
+          color: '#F44336',
+          barWidth: '40%' // Barras más delgadas
         },
         { 
           name: 'Atrasos', 
           type: 'bar', 
           data: result.map(r => r.atrasos), 
-          color: '#FF9800' 
+          color: '#FF9800',
+          barWidth: '40%'
         },
       ],
     },
@@ -386,7 +423,6 @@ private async getFaltasYAtrasosPorCurso() {
 }
 
 private async getComportamientoPorCurso() {
-  // Asegurarnos de obtener TODOS los cursos
   const data = await this.prisma.grade.findMany({
     include: {
       students: {
@@ -395,14 +431,12 @@ private async getComportamientoPorCurso() {
         },
       },
     },
-    // Opcional: ordenar por nombre
-    orderBy: {
-      name: 'asc'
-    }
+    // Ordenar por level y section
+    orderBy: [
+      { level: 'asc' },
+      { section: 'asc' }
+    ]
   });
-
-  // Debug: verificar cursos
-  console.log(`Cursos para comportamiento: ${data.length}`);
 
   const result = data.map((grade) => {
     const conteo = { '1': 0, '2': 0, '3': 0 };
@@ -413,52 +447,86 @@ private async getComportamientoPorCurso() {
       });
     });
 
-    console.log(`Curso: ${grade.name}, Incidentes: ${conteo['1']}, Avisos: ${conteo['2']}, Reconocimientos: ${conteo['3']}`);
-
     return {
-      curso: grade.name,
+      curso: `${grade.level}° ${grade.section}`, // Formato corto
+      name: grade.name,
+      level: grade.level,
+      section: grade.section,
       incidentes: conteo['1'],
       avisos: conteo['2'],
       reconocimientos: conteo['3'],
     };
   });
 
+  // Ordenar el resultado
+  result.sort((a, b) => {
+    const levelCompare = a.level.localeCompare(b.level);
+    if (levelCompare !== 0) return levelCompare;
+    return a.section.localeCompare(b.section);
+  });
+
   return {
     id: 'comportamiento-curso',
     title: 'Comportamiento por Curso',
     options: {
-      tooltip: { trigger: 'axis' },
-      legend: { data: ['Incidente Grave', 'Aviso', 'Reconocimiento'] },
+      tooltip: { 
+        trigger: 'axis',
+        axisPointer: {
+          type: 'shadow'
+        }
+      },
+      legend: { 
+        data: ['Incidente Grave', 'Aviso', 'Reconocimiento'],
+        top: '0%'
+      },
+      grid: {
+        left: '3%',
+        right: '4%',
+        bottom: '15%',
+        top: '15%',
+        containLabel: true
+      },
       xAxis: { 
         type: 'category', 
         data: result.map(r => r.curso),
         axisLabel: {
           interval: 0,
-          rotate: result.length > 5 ? 45 : 0
+          rotate: 45,
+          margin: 15,
+          fontSize: 10,
+          formatter: (value: string) => {
+            return value.length > 10 ? value.substring(0, 8) + '...' : value;
+          }
         }
       },
-      yAxis: { type: 'value' },
+      yAxis: { 
+        type: 'value',
+        name: 'Cantidad'
+      },
       series: [
         { 
           name: 'Incidente Grave', 
           type: 'bar', 
           stack: 'total', 
           data: result.map(r => r.incidentes), 
-          color: '#F44336' 
+          color: '#F44336',
+          barWidth: '60%'
         },
         { 
           name: 'Aviso', 
           type: 'bar', 
           stack: 'total', 
           data: result.map(r => r.avisos), 
-          color: '#FF9800' 
+          color: '#FF9800',
+          barWidth: '60%'
         },
         { 
           name: 'Reconocimiento', 
           type: 'bar', 
           stack: 'total', 
           data: result.map(r => r.reconocimientos), 
-          color: '#4CAF50' 
+          color: '#4CAF50',
+          barWidth: '60%'
         },
       ],
     },

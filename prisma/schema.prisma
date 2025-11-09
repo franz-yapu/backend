@@ -61,46 +61,7 @@ model role {
   updatedAt  DateTime @updatedAt @map("updated_at")
 }
 
-model product {
-  id          String    @id @default(uuid())
-  name        String
-  description String?
-  price       Int       @default(0)
-  stock       Int       @default(0)
-  file        String?
-  status      String    @default("active")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  categoryId  String    @map("category_id")
-  marcaId     String    @map("marca_id")
-  
-  // Relaciones
-  category    category? @relation(fields: [categoryId], references: [id])
-  marca       marca?    @relation(fields: [marcaId], references: [id])
-}
 
-model category {
-  id          String    @id @default(uuid())
-  name        String
-  status      String    @default("active")
-  description String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  
-  // Relación
-  products    product[]
-}
-
-model marca {
-  id          String    @id @default(uuid())
-  name        String
-  status      String    @default("active")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-  
-  // Relación
-  products    product[]
-}
 
 model Grade {
   id          String    @id @default(uuid())
@@ -270,12 +231,3 @@ model Attendance {
   observations  Observation[] @relation("AttendanceObservations")
 }
 
-model franz{
-   id          String    @id @default(uuid())
-  studentId   String    @map("student_id")
-  date        DateTime
-  status      String
-  notes       String?
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-}
