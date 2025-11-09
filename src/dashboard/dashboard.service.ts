@@ -234,6 +234,7 @@ export class DashboardService {
   }
 
 private async getFaltasYAtrasosPorCurso() {
+  // Asegurarnos de obtener TODOS los cursos
   const data = await this.prisma.grade.findMany({
     include: {
       students: {
@@ -242,7 +243,14 @@ private async getFaltasYAtrasosPorCurso() {
         },
       },
     },
+    // Opcional: ordenar por nombre para consistencia
+    orderBy: {
+      name: 'asc'
+    }
   });
+
+  // Debug: verificar cuántos cursos se obtuvieron
+  console.log(`Cursos encontrados: ${data.length}`);
 
   const result = data.map((grade) => {
     let faltas = 0;
@@ -255,8 +263,10 @@ private async getFaltasYAtrasosPorCurso() {
       });
     });
 
+    console.log(`Curso: ${grade.name}, Faltas: ${faltas}, Atrasos: ${atrasos}`);
+
     return {
-      curso: `${grade.name}`,
+      curso: grade.name,
       faltas,
       atrasos,
     };
@@ -268,11 +278,28 @@ private async getFaltasYAtrasosPorCurso() {
     options: {
       tooltip: { trigger: 'axis' },
       legend: { data: ['Faltas', 'Atrasos'] },
-      xAxis: { type: 'category', data: result.map(r => r.curso) },
+      xAxis: { 
+        type: 'category', 
+        data: result.map(r => r.curso),
+        axisLabel: {
+          interval: 0,
+          rotate: result.length > 5 ? 45 : 0 // Rotar labels si hay muchos cursos
+        }
+      },
       yAxis: { type: 'value' },
       series: [
-        { name: 'Faltas', type: 'bar', data: result.map(r => r.faltas), color: '#F44336' },
-        { name: 'Atrasos', type: 'bar', data: result.map(r => r.atrasos), color: '#FF9800' },
+        { 
+          name: 'Faltas', 
+          type: 'bar', 
+          data: result.map(r => r.faltas), 
+          color: '#F44336' 
+        },
+        { 
+          name: 'Atrasos', 
+          type: 'bar', 
+          data: result.map(r => r.atrasos), 
+          color: '#FF9800' 
+        },
       ],
     },
   };
@@ -359,6 +386,7 @@ private async getFaltasYAtrasosPorCurso() {
 }
 
 private async getComportamientoPorCurso() {
+  // Asegurarnos de obtener TODOS los cursos
   const data = await this.prisma.grade.findMany({
     include: {
       students: {
@@ -367,17 +395,25 @@ private async getComportamientoPorCurso() {
         },
       },
     },
+    // Opcional: ordenar por nombre
+    orderBy: {
+      name: 'asc'
+    }
   });
 
-  // Mapeamos por curso y tipo de comportamiento
+  // Debug: verificar cursos
+  console.log(`Cursos para comportamiento: ${data.length}`);
+
   const result = data.map((grade) => {
-    const conteo = { '1': 0, '2': 0, '3': 0 }; // 1=Incidente Grave, 2=Aviso, 3=Reconocimiento
+    const conteo = { '1': 0, '2': 0, '3': 0 };
 
     grade.students.forEach((student) => {
       student.behaviors.forEach((b) => {
         if (conteo[b.type] !== undefined) conteo[b.type]++;
       });
     });
+
+    console.log(`Curso: ${grade.name}, Incidentes: ${conteo['1']}, Avisos: ${conteo['2']}, Reconocimientos: ${conteo['3']}`);
 
     return {
       curso: grade.name,
@@ -393,12 +429,37 @@ private async getComportamientoPorCurso() {
     options: {
       tooltip: { trigger: 'axis' },
       legend: { data: ['Incidente Grave', 'Aviso', 'Reconocimiento'] },
-      xAxis: { type: 'category', data: result.map(r => r.curso) },
+      xAxis: { 
+        type: 'category', 
+        data: result.map(r => r.curso),
+        axisLabel: {
+          interval: 0,
+          rotate: result.length > 5 ? 45 : 0
+        }
+      },
       yAxis: { type: 'value' },
       series: [
-        { name: 'Incidente Grave', type: 'bar', stack: 'total', data: result.map(r => r.incidentes), color: '#F44336' },
-        { name: 'Aviso', type: 'bar', stack: 'total', data: result.map(r => r.avisos), color: '#FF9800' },
-        { name: 'Reconocimiento', type: 'bar', stack: 'total', data: result.map(r => r.reconocimientos), color: '#4CAF50' },
+        { 
+          name: 'Incidente Grave', 
+          type: 'bar', 
+          stack: 'total', 
+          data: result.map(r => r.incidentes), 
+          color: '#F44336' 
+        },
+        { 
+          name: 'Aviso', 
+          type: 'bar', 
+          stack: 'total', 
+          data: result.map(r => r.avisos), 
+          color: '#FF9800' 
+        },
+        { 
+          name: 'Reconocimiento', 
+          type: 'bar', 
+          stack: 'total', 
+          data: result.map(r => r.reconocimientos), 
+          color: '#4CAF50' 
+        },
       ],
     },
   };
